@@ -20,7 +20,7 @@ class OffPGLearner:
         self.last_target_update_step = 0
         self.critic_training_steps = 0
 
-        self.log_stats_t = -self.args.learner_log_interval - 1
+        # self.log_stats_t = -self.args.learner_log_interval - 1
 
         self.critic = OffPGCritic(scheme, args)
         self.mixer = QMixer(args)
@@ -92,17 +92,17 @@ class OffPGLearner:
             p_sum += p.data.abs().sum().item() / 100.0
 
 
-        if t_env - self.log_stats_t >= self.args.learner_log_interval:
-            ts_logged = len(log["critic_loss"])
-            for key in ["critic_loss", "critic_grad_norm", "td_error_abs", "q_taken_mean", "target_mean", "q_max_mean", "q_min_mean", "q_max_var", "q_min_var"]:
-                self.logger.log_stat(key, sum(log[key])/ts_logged, t_env)
-            self.logger.log_stat("q_max_first", log["q_max_first"], t_env)
-            self.logger.log_stat("q_min_first", log["q_min_first"], t_env)
-            #self.logger.log_stat("advantage_mean", (advantages * mask).sum().item() / mask.sum().item(), t_env)
-            self.logger.log_stat("coma_loss", coma_loss.item(), t_env)
-            self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
-            self.logger.log_stat("pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(), t_env)
-            self.log_stats_t = t_env
+        #if t_env - self.log_stats_t >= self.args.learner_log_interval:
+        #    ts_logged = len(log["critic_loss"])
+        #    for key in ["critic_loss", "critic_grad_norm", "td_error_abs", "q_taken_mean", "target_mean", "q_max_mean", "q_min_mean", "q_max_var", "q_min_var"]:
+        #        self.logger.log_stat(key, sum(log[key])/ts_logged, t_env)
+        #    self.logger.log_stat("q_max_first", log["q_max_first"], t_env)
+        #    self.logger.log_stat("q_min_first", log["q_min_first"], t_env)
+        #    #self.logger.log_stat("advantage_mean", (advantages * mask).sum().item() / mask.sum().item(), t_env)
+        #    self.logger.log_stat("coma_loss", coma_loss.item(), t_env)
+        #    self.logger.log_stat("agent_grad_norm", grad_norm, t_env)
+        #    self.logger.log_stat("pi_max", (pi.max(dim=1)[0] * mask).sum().item() / mask.sum().item(), t_env)
+        #    self.log_stats_t = t_env
 
     def train_critic(self, on_batch, best_batch=None, log=None):
         bs = on_batch.batch_size
@@ -172,22 +172,22 @@ class OffPGLearner:
             grad_norm = th.nn.utils.clip_grad_norm_(self.c_params, self.args.grad_norm_clip)
             self.critic_optimiser.step()
             self.mixer_optimiser.step()
-            self.critic_training_steps += 1
+            # self.critic_training_steps += 1
 
-            log["critic_loss"].append(critic_loss.item())
-            log["critic_grad_norm"].append(grad_norm)
+            # log["critic_loss"].append(critic_loss.item())
+            # log["critic_grad_norm"].append(grad_norm)
             mask_elems = mask_t.sum().item()
-            log["td_error_abs"].append((q_err.abs().sum().item() / mask_elems))
-            log["target_mean"].append((target_q_t * mask_t).sum().item() / mask_elems)
-            log["q_taken_mean"].append((q_vals * mask_t).sum().item() / mask_elems)
-            log["q_max_mean"].append((th.mean(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_min_mean"].append((th.mean(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_max_var"].append((th.var(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
-            log["q_min_var"].append((th.var(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
+            # log["td_error_abs"].append((q_err.abs().sum().item() / mask_elems))
+            # log["target_mean"].append((target_q_t * mask_t).sum().item() / mask_elems)
+            # log["q_taken_mean"].append((q_vals * mask_t).sum().item() / mask_elems)
+            # log["q_max_mean"].append((th.mean(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
+            # log["q_min_mean"].append((th.mean(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
+            # log["q_max_var"].append((th.var(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
+            # log["q_min_var"].append((th.var(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems)
 
-            if (t == 0):
-                log["q_max_first"] = (th.mean(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
-                log["q_min_first"] = (th.mean(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
+            # if (t == 0):
+            #     log["q_max_first"] = (th.mean(q_ori.max(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
+            #     log["q_min_first"] = (th.mean(q_ori.min(dim=3)[0], dim=2, keepdim=True) * mask_t).sum().item() / mask_elems
 
         #update target network
         if (self.critic_training_steps - self.last_target_update_step) / self.args.target_update_interval >= 1.0:

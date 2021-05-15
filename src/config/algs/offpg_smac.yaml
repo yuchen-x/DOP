@@ -2,23 +2,23 @@
 
 action_selector: "multinomial"
 epsilon_start: .5
-epsilon_finish: .05
-epsilon_anneal_time: 500000
+epsilon_finish: .01
+epsilon_anneal_time: 4000
 mask_before_softmax: False
 
 runner: "parallel"
 
-buffer_size: 32
+buffer_size: 4
 off_buffer_size: 5000 # size of the off-policy buffer
 batch_size_run: 4 #10
-batch_size: 16
+batch_size: 4
 off_batch_size: 32
 
 env_args:
   state_last_action: False # critic adds last action internally
 
 # update the target network every {} training steps
-target_update_interval: 600
+target_update_interval: 32
 step: 5 #steps for tree back up diagram  (adjustable based on # of agents)
 
 
