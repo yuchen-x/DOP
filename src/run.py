@@ -11,6 +11,7 @@ from types import SimpleNamespace as SN
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 from os.path import dirname, abspath
+import random
 
 from learners import REGISTRY as le_REGISTRY
 from runners import REGISTRY as r_REGISTRY
@@ -81,6 +82,7 @@ def run_sequential(args, logger):
     # create the dirs to save results
     os.makedirs("./performance/" + args.save_dir + "/train", exist_ok=True)
     os.makedirs("./performance/" + args.save_dir + "/test", exist_ok=True)
+    os.makedirs("./performance/" + args.save_dir + "/ckpt", exist_ok=True)
 
     # Init runner so we can get env info
     runner = r_REGISTRY[args.runner](args=args, logger=logger)
@@ -175,7 +177,12 @@ def run_sequential(args, logger):
 
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
 
-    test_returns = []
+    if args.resume:
+        episode, test_returns = load_ckpt(args.run_id, learner, mac, off_buffer, args.save_dir)
+    else:
+        test_returns = []
+        episode = 0
+
     while episode <= args.t_max:
 
         # critic running log
@@ -248,6 +255,10 @@ def run_sequential(args, logger):
         #     logger.log_stat("episode", episode, runner.t_env)
         #     logger.print_recent_stats()
         #     last_log_T = runner.t_env
+        if (time.time() - start_time) / 3600 >= 23:
+            save_ckpt(args.run_id, episode, learner, off_buffer, mac, test_returns, args.save_dir)
+            start_time = time.time()
+            break
 
     save_test_data(args.run_id, test_returns, args.save_dir)
     save_train_data(args.run_id, runner.train_returns, args.save_dir)
@@ -261,6 +272,56 @@ def save_train_data(run_idx, data, save_dir):
 def save_test_data(run_idx, data, save_dir):
     with open("./performance/" + save_dir + "/test/test_perform" + str(run_idx) + ".pickle", 'wb') as handle:
         pickle.dump(data, handle)
+
+def save_ckpt(run_idx, episode, learner, off_buffer, mac, test_returns, save_dir, max_save=2):
+
+    PATH = "./performance/" + save_dir + "/ckpt/" + str(run_idx) + "_genric_" + "{}.tar"
+    for n in list(range(max_save-1, 0, -1)):
+        os.system('cp -rf ' + PATH.format(n) + ' ' + PATH.format(n+1) )
+    PATH = PATH.format(1)
+
+    th.save({'episode': episode,
+             'test_returns': test_returns,
+             'random_state': random.getstate(),
+             'np_random_state': np.random.get_state(),
+             'torch_random_state': th.random.get_rng_state(),
+             'critic_net_state_dict': learner.critic.state_dict(),
+             'mixer_state_dict': learner.mixer.state_dict(),
+             'target_critic_net_state_dict': learner.target_critic.state_dict(),
+             'target_mixer_state_dict': learner.target_mixer.state_dict(),
+             'critic_optimiser_state_dict': learner.critic_optimiser.state_dict(),
+             'agent_optimiser_state_dict': learner.agent_optimiser.state_dict(),
+             'mixer_optimiser_state_dict': learner.mixer_optimiser.state_dict(),
+             'agent_net_state_dict': mac.agent.state_dict(),
+             'learner_critic_training_steps': learner.critic_training_steps,
+             'learner_last_target_update_step': learner.last_target_update_step,
+             'off_buffer_data': off_buffer.data,
+             'off_buffer_index': off_buffer.buffer_index,
+             'off_buffer_episodes_in_buffer': off_buffer.episodes_in_buffer, 
+             }, PATH)
+
+def load_ckpt(run_idx, learner, mac, off_buffer, save_dir):
+    PATH = "./performance/" + save_dir + "/ckpt/" + str(run_idx) + "_genric_" + "1.tar"
+    ckpt = th.load(PATH)
+    episode = ckpt['episode']
+    test_returns = ckpt['test_returns']
+    random.setstate(ckpt['random_state'])
+    np.random.set_state(ckpt['np_random_state'])
+    th.set_rng_state(ckpt['torch_random_state'])
+    learner.critic.load_state_dict(ckpt['critic_net_state_dict'])
+    learner.target_critic.load_state_dict(ckpt['target_critic_net_state_dict'])
+    learner.mixer.load_state_dict(ckpt['mixer_state_dict'])
+    learner.target_mixer.load_state_dict(ckpt['target_mixer_state_dict'])
+    learner.critic_optimiser.load_state_dict(ckpt['critic_optimiser_state_dict'])
+    learner.agent_optimiser.load_state_dict(ckpt['agent_optimiser_state_dict'])
+    learner.mixer_optimiser.load_state_dict(ckpt['mixer_optimiser_state_dict'])
+    learner.critic_training_steps = ckpt['learner_critic_training_steps']
+    learner.last_target_update_step = ckpt['learner_last_target_update_step']
+    mac.agent.load_state_dict(ckpt['agent_net_state_dict'])
+    off_buffer.data = ckpt['off_buffer_data']
+    off_buffer.buffer_index = ckpt['off_buffer_index']
+    off_buffer.episodes_in_buffer = ckpt['off_buffer_episodes_in_buffer']
+    return episode, test_returns
 
 def args_sanity_check(config, _log):
 

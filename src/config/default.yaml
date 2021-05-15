@@ -47,3 +47,4 @@ run_id: 0
 save_dir: "trail"
 repeat_id: 1
 label: "default_label"
+resume: False
