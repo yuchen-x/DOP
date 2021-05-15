@@ -257,7 +257,6 @@ def env_worker(remote, env_fn, gamma, seed):
             # Return the observations, avail_actions and state to make the next action
             state = env.get_state()
             avail_actions = env.get_avail_actions()
-            obs = env.get_obs()
             remote.send({
                 # Data for the next timestep needed to pick an action
                 "state": state,
