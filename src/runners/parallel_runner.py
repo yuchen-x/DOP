@@ -30,7 +30,7 @@ class ParallelRunner:
                          tuple(args.env_args['grid_dim']),
                          terminate_step=args.env_args['terminate_step'])
         elif args.env.startswith('CT'):
-            env_fn = CT(1,2)
+            env_fn = CT(1,2,grid_dim=tuple(args.env_args['grid_dim']))
         elif args.env.startswith('BP'):
             env_fn = BP(**args.env_args)
             env_fn.seed(args.seed)
