@@ -40,6 +40,8 @@ class ParallelRunner:
 
         self.log_train_stats_t = -100000
 
+        self.won_count = []
+
     def setup(self, scheme, groups, preprocess, mac):
         self.new_batch = partial(EpisodeBatch, scheme, groups, self.batch_size, self.episode_limit + 1,
                                  preprocess=preprocess, device=self.args.device)
@@ -141,7 +143,7 @@ class ParallelRunner:
                     # Remaining data for this current timestep
                     post_transition_data["reward"].append((data["reward"],))
 
-                    episode_returns[idx] += data["reward"]
+                    episode_returns[idx] += self.args.gamma**self.t * (data["reward"]*self.env_info['n_agents'])
                     episode_lengths[idx] += 1
                     if not test_mode:
                         self.env_steps_this_run += 1
@@ -149,6 +151,8 @@ class ParallelRunner:
                     env_terminated = False
                     if data["terminated"]:
                         final_env_infos.append(data["info"])
+                        if test_mode and 'battle_won' in data['info'].keys():
+                            self.won_count.append(data["info"]['battle_won'])
                     if data["terminated"] and not data["info"].get("episode_limit", False):
                         env_terminated = True
                     terminated[idx] = data["terminated"]
@@ -191,13 +195,13 @@ class ParallelRunner:
         cur_returns.extend(episode_returns)
 
         n_test_runs = max(1, self.args.test_nepisode // self.batch_size) * self.batch_size
-        if test_mode and (len(self.test_returns) == n_test_runs):
-            self._log(cur_returns, cur_stats, log_prefix)
-        elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
-            self._log(cur_returns, cur_stats, log_prefix)
-            if hasattr(self.mac.action_selector, "epsilon"):
-                self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
-            self.log_train_stats_t = self.t_env
+        # if test_mode and (len(self.test_returns) == n_test_runs):
+        #     self._log(cur_returns, cur_stats, log_prefix)
+        # elif self.t_env - self.log_train_stats_t >= self.args.runner_log_interval:
+        #     self._log(cur_returns, cur_stats, log_prefix)
+        #     if hasattr(self.mac.action_selector, "epsilon"):
+        #         self.logger.log_stat("epsilon", self.mac.action_selector.epsilon, self.t_env)
+        #     self.log_train_stats_t = self.t_env
 
         return self.batch
 
