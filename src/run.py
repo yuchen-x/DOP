@@ -178,7 +178,7 @@ def run_sequential(args, logger):
     logger.console_logger.info("Beginning training for {} timesteps".format(args.t_max))
 
     if args.resume:
-        won_stats, eval_returns = load_ckpt(args.run_id, learner, mac, off_buffer, runner, args.save_dir)
+        won_stats, eval_returns, last_test_T, episode = load_ckpt(args.run_id, runner, learner, mac, off_buffer, args.save_dir)
     else:
         eval_returns = []
         won_stats = []
@@ -235,7 +235,7 @@ def run_sequential(args, logger):
                 runner.run(test_mode=True)
             won_stats.append(np.mean(runner.won_count[0:args.test_nepisode]))
             eval_returns.append(np.mean(runner.test_returns[0:args.test_nepisode]))
-            print(f"{[args.run_id]} Finished: {runner.t_env}/{args.t_max} won_rate: {won_stats[-1]} latested averaged eval returns {eval_returns[-1]} ...", flush=True)
+            print(f"{[args.run_id]} Finished: {episode} episodes, {runner.t_env}/{args.t_max} won_rate: {won_stats[-1]} latested averaged eval returns {eval_returns[-1]} ...", flush=True)
             runner.won_count = []
             runner.test_returns = []
 
@@ -258,7 +258,7 @@ def run_sequential(args, logger):
             last_log_T = runner.t_env
 
         if (time.time() - start_time) / 3600 >= 23:
-            save_ckpt(args.run_id, runner, learner, off_buffer, mac, won_stats, eval_returns, args.save_dir)
+            save_ckpt(args.run_id, runner, learner, off_buffer, mac, won_stats, eval_returns, last_test_T, episode, args.save_dir)
             break
 
     save_test_data(args.run_id, eval_returns, args.save_dir)
@@ -275,7 +275,7 @@ def save_won_data(run_id, data, save_dir):
         pickle.dump(data, handle)
 
 
-def save_ckpt(run_idx, runner, learner, off_buffer, mac, won_stats, eval_returns, save_dir, max_save=2):
+def save_ckpt(run_idx, runner, learner, off_buffer, mac, won_stats, eval_returns, last_test_T, episode, save_dir, max_save=2):
 
     PATH = "./performance/" + save_dir + "/ckpt/" + str(run_idx) + "_genric_" + "{}.tar"
     for n in list(range(max_save-1, 0, -1)):
@@ -284,6 +284,8 @@ def save_ckpt(run_idx, runner, learner, off_buffer, mac, won_stats, eval_returns
 
     th.save({'runner_t': runner.t,
              'runner_t_env': runner.t_env,
+             'last_test_T': last_test_T,
+             'episode': episode,
              'won_stats': won_stats,
              'eval_returns': eval_returns,
              'random_state': random.getstate(),
@@ -327,9 +329,7 @@ def load_ckpt(run_idx, runner, learner, mac, off_buffer, save_dir):
     off_buffer.data = ckpt['off_buffer_data']
     off_buffer.buffer_index = ckpt['off_buffer_index']
     off_buffer.episodes_in_buffer = ckpt['off_buffer_episodes_in_buffer']
-    return won_stats, eval_returns
-
-
+    return won_stats, eval_returns, ckpt['last_test_T'], ckpt['episode']
 
 
 def args_sanity_check(config, _log):
