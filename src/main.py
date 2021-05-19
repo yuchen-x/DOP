@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import os
 import collections
 from os.path import dirname, abspath
@@ -28,8 +29,10 @@ def my_main(_run, _config, _log):
     # Setting the random seed throughout the modules
     config = config_copy(_config)
     np.random.seed(config["seed"])
+    random.seed(config["seed"])
     th.manual_seed(config["seed"])
     config['env_args']['seed'] = config["seed"]
+    th.set_num_threads(1)
 
     # run the framework
     run(_run, config, _log)
